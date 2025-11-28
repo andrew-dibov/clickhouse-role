@@ -33,7 +33,7 @@
       - clickhouse-client
 
 - name: "Create config directory"
-  file:
+  ansible.builtin.file:
     path: "/etc/clickhouse-server/config.d"
     state: directory
     owner: clickhouse
@@ -41,7 +41,7 @@
     mode: "0755"
 
 - name: "Configure CORS and network"
-  template:
+  ansible.builtin.template:
     src: cors.xml.j2
     dest: /etc/clickhouse-server/config.d/cors.xml
     owner: clickhouse
@@ -64,29 +64,24 @@
     timeout: 60
 
 - name: "Create database and table"
-  community.general.clickhouse:
-    login_host: "{{ ansible_host }}"
-    login_port: "{{ clickhouse_http_port }}"
-    database: "{{ clickhouse_database }}"
-    query: |
-      CREATE TABLE IF NOT EXISTS {{ clickhouse_table }} (
-        timestamp DateTime,
-        message String,
-        host String,
-        source String
-      ) ENGINE = MergeTree()
-      PARTITION BY toYYYYMM(timestamp)
-      ORDER BY (timestamp, host)
-  register: clickhouse_table_creation
-  failed_when: false
+  ansible.builtin.shell: |
+    clickhouse-client --query="CREATE DATABASE IF NOT EXISTS {{ clickhouse_database }}"
+    clickhouse-client --query="CREATE TABLE IF NOT EXISTS {{ clickhouse_database }}.{{ clickhouse_table }} (
+      timestamp DateTime,
+      message String,
+      host String,
+      source String
+    ) ENGINE = MergeTree()
+    PARTITION BY toYYYYMM(timestamp)
+    ORDER BY (timestamp, host)"
+  register: db_creation
+  failed_when: db_creation.rc != 0 and "already exists" not in db_creation.stderr
+  changed_when: db_creation.rc == 0
 
 - name: "Get ClickHouse version"
-  community.general.clickhouse:
-    login_host: "{{ ansible_host }}"
-    login_port: "{{ clickhouse_http_port }}"
-    query: "SELECT version()"
+  ansible.builtin.shell: clickhouse-client --query="SELECT version()"
   register: clickhouse_version
 
 - name: "Display ClickHouse version"
-  debug:
-    msg: "ClickHouse version: {{ clickhouse_version.query_result }}"
+  ansible.builtin.debug:
+    msg: "ClickHouse version: {{ clickhouse_version.stdout }}"
