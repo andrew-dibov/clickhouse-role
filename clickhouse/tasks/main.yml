@@ -1,29 +1,28 @@
 ---
-- name: "Install dependencies"
+- name: "Clickhouse : install dependencies"
   ansible.builtin.dnf:
     state: present
     name:
       - curl
       - gnupg
       - yum-utils
-  when: clickhouse_install_dependencies
 
-- name: "Add ClickHouse repository"
+- name: "Clickhouse : add repository"
   block:
-    - name: "Add repository GPG key"
+    - name: "Add repository : set GPG key"
       ansible.builtin.rpm_key:
         state: present
         key: https://packages.clickhouse.com/rpm/stable/repodata/repomd.xml.key
-    - name: "Add repository"
+    - name: "Add repository : set repository"
       ansible.builtin.yum_repository:
         name: clickhouse
-        description: ClickHouse repository
+        description: Clickhouse repository
         enabled: yes
         gpgcheck: yes
         baseurl: https://packages.clickhouse.com/rpm/stable/
         gpgkey: https://packages.clickhouse.com/rpm/stable/repodata/repomd.xml.key
 
-- name: "Install ClickHouse packages"
+- name: "Clickhouse : install packages"
   ansible.builtin.dnf:
     disable_gpg_check: yes
     update_cache: yes
@@ -32,15 +31,15 @@
       - clickhouse-server
       - clickhouse-client
 
-- name: "Create config directory"
-  ansible.builtin.file:
+- name: "Clickhouse : create config directory"
+  file:
     path: "/etc/clickhouse-server/config.d"
     state: directory
     owner: clickhouse
     group: clickhouse
     mode: "0755"
 
-- name: "Configure CORS and network"
+- name: "Clickhouse : configure"
   ansible.builtin.template:
     src: cors.xml.j2
     dest: /etc/clickhouse-server/config.d/cors.xml
@@ -48,25 +47,25 @@
     group: clickhouse
     mode: "0644"
 
-- name: "Start and enable ClickHouse service"
+- name: "Clickhouse : start systemd service"
   ansible.builtin.systemd:
     name: clickhouse-server
     state: started
     enabled: yes
     daemon_reload: yes
 
-- name: "Wait for ClickHouse to start"
+- name: "Clickhouse : verify systemd service"
   ansible.builtin.wait_for:
     host: "{{ ansible_host }}"
     state: started
-    port: "{{ clickhouse_http_port }}"
+    port: 8123
     delay: 10
     timeout: 60
 
-- name: "Create database and table"
-  ansible.builtin.shell: |
-    clickhouse-client --query="CREATE DATABASE IF NOT EXISTS {{ clickhouse_database }}"
-    clickhouse-client --query="CREATE TABLE IF NOT EXISTS {{ clickhouse_database }}.{{ clickhouse_table }} (
+- name: "Clickhouse : prepare database"
+  shell: |
+    clickhouse-client --query="CREATE DATABASE IF NOT EXISTS {{ clickhouse_db_name }}"
+    clickhouse-client --query="CREATE TABLE IF NOT EXISTS {{ clickhouse_db_name }}.{{ clickhouse_db_table }} (
       timestamp DateTime,
       message String,
       host String,
@@ -78,10 +77,10 @@
   failed_when: db_creation.rc != 0 and "already exists" not in db_creation.stderr
   changed_when: db_creation.rc == 0
 
-- name: "Get ClickHouse version"
-  ansible.builtin.shell: clickhouse-client --query="SELECT version()"
+- name: "Clickhouse : get version"
+  shell: clickhouse-client --query="SELECT version()"
   register: clickhouse_version
 
-- name: "Display ClickHouse version"
-  ansible.builtin.debug:
+- name: "Clickhouse : display version"
+  debug:
     msg: "ClickHouse version: {{ clickhouse_version.stdout }}"

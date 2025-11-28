@@ -6,37 +6,25 @@
 
 ## Требования
 
-- Rocky Linux 8/9
+- Rocky Linux 9
 - Ansible 2.1+
 
 ## Переменные
 
 ```yaml
-clickhouse_version: "stable"
-clickhouse_http_port: 8123
-clickhouse_database: "logs"
-clickhouse_table: "vector_logs"
+clickhouse_db_name: logs
+clickhouse_db_table: vector_logs
 ```
 
 ## Использование
 
 ```yaml
-- hosts: clickhouse
-  roles:
-    - clickhouse
-```
-
-## Пример
-
-```yaml
-- hosts: databases
+- name: "Deploy ClickHouse"
+  hosts: clickhouse
+  become: true
   vars:
-    clickhouse_database: "app_logs"
-    clickhouse_table: "nginx_logs"
+    clickhouse_database: "logs"
+    clickhouse_table: "vector_logs"
   roles:
     - clickhouse
 ```
-
-## Лицензия
-
-MIT
