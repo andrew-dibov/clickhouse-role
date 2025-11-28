@@ -1,0 +1,6 @@
+---
+clickhouse_version: "stable"
+clickhouse_http_port: 8123
+clickhouse_database: "logs"
+clickhouse_table: "vector_logs"
+clickhouse_install_dependencies: true
