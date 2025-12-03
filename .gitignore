@@ -10,6 +10,7 @@ terraform.tfvars
 
 .auth/
 .vscode/
+.ansible/
 
 inventory.yml
 inventory.ini
