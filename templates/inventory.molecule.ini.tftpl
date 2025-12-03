@@ -1,0 +1,25 @@
+[all:vars]
+ansible_ssh_common_args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+ansible_connection=ssh
+ansible_python_interpreter=/usr/bin/python3
+
+%{ for name, instance in instances ~}
+[${name}-host]
+${name} ansible_host=${instance.public_ip} ansible_user=${instance.user} ansible_ssh_private_key_file=../../../${instance.ssh_key}
+%{ endfor ~}
+
+[rocky-servers]
+%{ for name, instance in instances ~}
+%{ if instance.user == "rocky" }${name}
+%{ endif ~}
+%{ endfor ~}
+
+[ubuntu-servers]
+%{ for name, instance in instances ~}
+%{ if instance.user == "ubuntu" }${name}
+%{ endif ~}
+%{ endfor ~}
+
+[clickhouse-servers:children]
+rocky-servers
+ubuntu-servers

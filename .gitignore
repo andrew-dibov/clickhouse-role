@@ -1,0 +1,16 @@
+**/.terraform/*
+.terraform*
+
+!.terraformrc
+
+*.tfstate
+*.tfstate.*
+
+terraform.tfvars
+
+.auth/
+.vscode/
+
+inventory.yml
+inventory.ini
+inventory.molecule.ini

@@ -1,0 +1,36 @@
+---
+driver:
+  name: podman
+
+provisioner:
+  name: ansible
+
+verifier:
+  name: ansible
+
+# ---
+
+platforms:
+  - name: ubuntu-instance
+    image: docker.io/geerlingguy/docker-ubuntu2204-ansible
+
+    pre_build_image: true
+    privileged: true
+
+    command: "/sbin/init"
+    cgroup_manager: "cgroupfs"
+    tmpfs:
+      - /run
+      - /tmp
+
+  - name: rocky-instance
+    image: docker.io/geerlingguy/docker-rockylinux9-ansible
+
+    pre_build_image: true
+    privileged: true
+
+    command: "/sbin/init"
+    cgroup_manager: "cgroupfs"
+    tmpfs:
+      - /run
+      - /tmp

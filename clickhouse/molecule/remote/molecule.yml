@@ -1,0 +1,14 @@
+---
+driver:
+  name: default
+
+provisioner:
+  name: ansible
+  inventory:
+    links:
+      inventory: ../../../inventory.molecule.ini
+
+verifier:
+  name: ansible
+
+platforms: []

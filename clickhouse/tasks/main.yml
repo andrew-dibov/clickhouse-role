@@ -1,86 +1,139 @@
 ---
-- name: "Clickhouse : install dependencies"
-  ansible.builtin.dnf:
-    state: present
-    name:
-      - curl
-      - gnupg
-      - yum-utils
-
-- name: "Clickhouse : add repository"
+- name: "Dependencies"
   block:
-    - name: "Add repository : set GPG key"
-      ansible.builtin.rpm_key:
+    - name: "Dependencies : Rocky"
+      when: ansible_facts['distribution'] == "Rocky"
+
+      ansible.builtin.dnf:
+        update_cache: yes
         state: present
-        key: https://packages.clickhouse.com/rpm/stable/repodata/repomd.xml.key
-    - name: "Add repository : set repository"
-      ansible.builtin.yum_repository:
-        name: clickhouse
-        description: Clickhouse repository
-        enabled: yes
-        gpgcheck: yes
-        baseurl: https://packages.clickhouse.com/rpm/stable/
-        gpgkey: https://packages.clickhouse.com/rpm/stable/repodata/repomd.xml.key
+        name:
+          - yum-utils
+          - python3-pip
+    - name: "Dependencies : Ubuntu"
+      when: ansible_facts['distribution'] == "Ubuntu"
 
-- name: "Clickhouse : install packages"
-  ansible.builtin.dnf:
-    disable_gpg_check: yes
-    update_cache: yes
+      ansible.builtin.apt:
+        update_cache: yes
+        state: present
+        name:
+          - curl
+          - gnupg
+          - python3-pip
+          - ca-certificates
+          - apt-transport-https
+
+- name: "Clickhouse driver"
+  when: ansible_python is defined
+
+  ansible.builtin.pip:
+    name: clickhouse-driver
     state: present
-    name:
-      - clickhouse-server
-      - clickhouse-client
 
-- name: "Clickhouse : create config directory"
-  file:
-    path: "/etc/clickhouse-server/config.d"
-    state: directory
-    owner: clickhouse
-    group: clickhouse
-    mode: "0755"
+- name: "Repositories"
+  block:
+    - name: "Repositories : Rocky"
+      when: ansible_facts['distribution'] == "Rocky"
 
-- name: "Clickhouse : configure"
+      block:
+        - name: "Repositories : Rocky : get repository"
+          ansible.builtin.yum_repository:
+            name: clickhouse
+            description: clickhouse repository
+            enabled: yes
+            baseurl: "{{ rocky_repo }}"
+            gpgkey: "{{ rocky_repo_key }}"
+
+    - name: "Repositories : Ubuntu"
+      when: ansible_facts['distribution'] == "Ubuntu"
+
+      block:
+        - name: "Repositories : Ubuntu : get GPG"
+          ansible.builtin.apt_key:
+            url: "{{ ubuntu_repo_key }}"
+            state: present
+        - name: "Repositories : Ubuntu : get repository"
+          ansible.builtin.apt_repository:
+            repo: "deb {{ ubuntu_repo }} stable main"
+            state: present
+            filename: clickhouse
+
+- name: "Packages"
+  block:
+    - name: "Packages : Rocky"
+      when: ansible_facts['distribution'] == "Rocky"
+
+      ansible.builtin.dnf:
+        disable_gpg_check: yes
+        update_cache: yes
+        state: present
+        name:
+          - clickhouse-server
+          - clickhouse-client
+
+    - name: "Packages : Ubuntu"
+      when: ansible_facts['distribution'] == "Ubuntu"
+
+      ansible.builtin.apt:
+        update_cache: yes
+        state: present
+        name:
+          - clickhouse-server
+          - clickhouse-client
+
+- name: "Create configuration file : All"
+
   ansible.builtin.template:
-    src: cors.xml.j2
     dest: /etc/clickhouse-server/config.d/cors.xml
     owner: clickhouse
     group: clickhouse
+    src: cors.xml.j2
     mode: "0644"
 
-- name: "Clickhouse : start systemd service"
+- name: "Enable systemd service : All"
+
   ansible.builtin.systemd:
     name: clickhouse-server
-    state: started
     enabled: yes
+    state: started
     daemon_reload: yes
 
-- name: "Clickhouse : verify systemd service"
+- name: "Check systemd service : All"
+
   ansible.builtin.wait_for:
     host: "{{ ansible_host }}"
     state: started
     port: 8123
-    delay: 10
-    timeout: 60
 
-- name: "Clickhouse : prepare database"
-  shell: |
-    clickhouse-client --query="CREATE DATABASE IF NOT EXISTS {{ clickhouse_db_name }}"
-    clickhouse-client --query="CREATE TABLE IF NOT EXISTS {{ clickhouse_db_name }}.{{ clickhouse_db_table }} (
-      timestamp DateTime,
-      message String,
-      host String,
-      source String
-    ) ENGINE = MergeTree()
-    PARTITION BY toYYYYMM(timestamp)
-    ORDER BY (timestamp, host)"
-  register: db_creation
-  failed_when: db_creation.rc != 0 and "already exists" not in db_creation.stderr
-  changed_when: db_creation.rc == 0
+- name: "Create clickhouse database : All"
 
-- name: "Clickhouse : get version"
-  shell: clickhouse-client --query="SELECT version()"
-  register: clickhouse_version
+  community.clickhouse.clickhouse_db:
+    login_host: "localhost"
+    login_port: 9000
 
-- name: "Clickhouse : display version"
-  debug:
-    msg: "ClickHouse version: {{ clickhouse_version.stdout }}"
+    login_user: "default"
+    login_password: ""
+
+    state: present
+    name: "{{ clickhouse_database }}"
+
+- name: "Create clickhouse table : All"
+  register: table_result
+  changed_when: false # идемпотентно т.к. CREATE TABLE IF NOT EXISTS
+
+  community.clickhouse.clickhouse_client:
+    login_host: "localhost"
+    login_port: 9000
+
+    login_user: "default"
+    login_password: ""
+
+    execute: |
+      CREATE TABLE IF NOT EXISTS {{ clickhouse_database }}.{{ clickhouse_table }} (
+        timestamp DateTime,
+        message String,
+        host String,
+        source String
+      ) ENGINE = MergeTree()
+      PARTITION BY toYYYYMM(timestamp)
+      ORDER BY (timestamp, host)

@@ -1,0 +1,10 @@
+---
+- name: clickhouse
+  hosts: all
+  become: true
+  become_user: root
+  vars:
+    clickhouse_database: "test_db"
+    clickhouse_table: "test_table"
+  roles:
+    - ./clickhouse

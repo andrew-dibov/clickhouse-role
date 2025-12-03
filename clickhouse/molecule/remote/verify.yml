@@ -1,0 +1,29 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  become_user: root
+  gather_facts: true
+
+  tasks:
+    - name: Get OS
+      ansible.builtin.debug:
+        msg: "OS : {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}"
+
+    - name: Check configuration file
+      ansible.builtin.stat:
+        path: /etc/clickhouse-server/config.d/cors.xml
+
+    - name: Check clickhouse port
+      ansible.builtin.wait_for:
+        host: "{{ ansible_host }}"
+        port: 8123
+        timeout: 5
+
+    - name: Check clickhouse HTTP interface
+      ansible.builtin.uri:
+        url: "http://{{ ansible_host }}:8123/"
+        method: GET
+        status_code:
+          - 200
+        timeout: 5

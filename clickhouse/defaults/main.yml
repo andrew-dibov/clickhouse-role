@@ -1,3 +1,9 @@
 ---
-clickhouse_db_name: logs
-clickhouse_db_table: vector_logs
+clickhouse_database: database
+clickhouse_table: table
+
+rocky_repo: https://packages.clickhouse.com/rpm/stable/
+rocky_repo_key: https://packages.clickhouse.com/rpm/stable/repodata/repomd.xml.key
+
+ubuntu_repo: https://packages.clickhouse.com/deb
+ubuntu_repo_key: https://packages.clickhouse.com/rpm/lts/repodata/repomd.xml.key

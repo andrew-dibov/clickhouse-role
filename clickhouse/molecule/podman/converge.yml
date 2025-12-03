@@ -1,0 +1,9 @@
+---
+- name: Converge
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Clickhouse
+
+      ansible.builtin.include_role:
+        name: "../../../clickhouse"
